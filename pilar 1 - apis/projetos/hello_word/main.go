@@ -4,8 +4,8 @@ import (
 	"log"
 	"net/http"
 
-	_ "github.com/go-kivik/couchdb/v4" // driver CouchDB
-	"github.com/go-kivik/kivik/v4"
+	kivik "github.com/go-kivik/kivik/v4"
+	_ "github.com/go-kivik/kivik/v4/couchdb" // driver CouchDB
 	"github.com/gorilla/mux"
 	"github.com/lucasbadico/intensivo-hello-world/handler"
 )
