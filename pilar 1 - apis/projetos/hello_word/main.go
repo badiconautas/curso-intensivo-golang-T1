@@ -19,18 +19,19 @@ func main() {
 	}
 
 	db := client.DB("notebook")
-	// if err := db.Err(); err != nil {
-	// 	log.Fatalf("erro ao conectar ao DB: %s", err)
-	// }
+	if err := db.Err(); err != nil {
+		log.Fatalf("erro ao conectar ao DB: %s", err)
+	}
 
 	r := mux.NewRouter()
 
 	h := handler.New(db)
 
-	r.HandleFunc("/hello", h.Hello).Methods("GET")
+	r.HandleFunc("/health", h.Health).Methods("GET")
 
-	r.HandleFunc("/ping", h.Ping).Methods("POST")
+	r.HandleFunc("/notebooks", h.Create).Methods("POST")
 
+	r.HandleFunc("/notebooks/{notebook_id}", h.Get).Methods("GET")
 	log.Println("Servidor rodando em :8080")
 	http.ListenAndServe(":8080", r)
 }
