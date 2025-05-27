@@ -18,7 +18,7 @@ func main() {
 		log.Fatalf("erro ao criar cliente CouchDB: %s", err)
 	}
 
-	db := client.DB("notebook")
+	db := client.DB("notebooks")
 	if err := db.Err(); err != nil {
 		log.Fatalf("erro ao conectar ao DB: %s", err)
 	}
@@ -32,6 +32,9 @@ func main() {
 	r.HandleFunc("/notebooks", h.Create).Methods("POST")
 
 	r.HandleFunc("/notebooks/{notebook_id}", h.Get).Methods("GET")
+	r.HandleFunc("/notebooks/{notebook_id}", h.Delete).Methods("DELETE")
+	r.HandleFunc("/notebooks/{notebook_id}", h.Update).Methods("PUT")
+	r.HandleFunc("/notebooks-list", h.List).Methods("GET")
 	log.Println("Servidor rodando em :8080")
 	http.ListenAndServe(":8080", r)
 }
