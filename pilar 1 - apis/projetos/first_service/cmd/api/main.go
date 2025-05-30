@@ -20,7 +20,7 @@ func main() {
 		log.Fatalf("erro ao criar cliente CouchDB: %s", err)
 	}
 
-	db := client.DB("notebooks")
+	db := client.DB("notebook")
 	if err := db.Err(); err != nil {
 		log.Fatalf("erro ao conectar ao DB: %s", err)
 	}

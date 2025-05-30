@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"net/http"
 
-	kivik "github.com/go-kivik/kivik/v4"
 	"github.com/gorilla/mux"
+	"github.com/lucasbadico/intensivo-first-service/model"
 	"github.com/lucasbadico/intensivo-first-service/service"
 )
 
@@ -38,10 +38,13 @@ func (h *Handler) MountHandlers(r *mux.Router) {
 
 	r.HandleFunc("/notebooks", h.Create).Methods("POST")
 
-	r.HandleFunc("/notebooks/{notebook_id}", h.Get).Methods("GET")
 	r.HandleFunc("/notebooks/{notebook_id}", h.Delete).Methods("DELETE")
-	r.HandleFunc("/notebooks/{notebook_id}", h.Update).Methods("PUT")
-	r.HandleFunc("/notebooks-list", h.List).Methods("GET")
+
+	r.HandleFunc("/notebooks/{notebook_id}", h.Get).Methods("GET")
+
+	// r.HandleFunc("/notebooks/{notebook_id}", h.Get).Methods("GET")
+	// r.HandleFunc("/notebooks/{notebook_id}", h.Update).Methods("PUT")
+	// r.HandleFunc("/notebooks-list", h.List).Methods("GET")
 }
 
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +63,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	var input service.CreateNotebookInput
+	var input model.CreateNotebookInputDTO
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "JSON inválido: "+err.Error(), http.StatusBadRequest)
 		return
@@ -79,59 +82,58 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-// Update
-func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	ctx := context.TODO()
+// // Update
+// func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
+// 	w.Header().Set("Content-Type", "application/json")
+// 	ctx := context.TODO()
 
-	vars := mux.Vars(r)
-	docID := vars["notebook_id"]
+// 	vars := mux.Vars(r)
+// 	docID := vars["notebook_id"]
 
-	var existingNB Notebook
-	err := h.couchdb.Get(ctx, vars["notebook_id"]).ScanDoc(&existingNB)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Erro ao buscar Notebook: %v", err), http.StatusNotFound)
-		return
-	}
+// 	var existingNB Notebook
+// 	err := h.couchdb.Get(ctx, vars["notebook_id"]).ScanDoc(&existingNB)
+// 	if err != nil {
+// 		http.Error(w, fmt.Sprintf("Erro ao buscar Notebook: %v", err), http.StatusNotFound)
+// 		return
+// 	}
 
-	rev := existingNB.Rev // Aqui pega a revisão do documento
-	if rev == "" {
-		http.Error(w, "Falha ao obter a rev", http.StatusInternalServerError)
-		return
-	}
+// 	rev := existingNB.Rev // Aqui pega a revisão do documento
+// 	if rev == "" {
+// 		http.Error(w, "Falha ao obter a rev", http.StatusInternalServerError)
+// 		return
+// 	}
 
-	var updated Notebook
-	if err := json.NewDecoder(r.Body).Decode(&updated); err != nil {
-		http.Error(w, "Erro ao decodificar JSON de entrada", http.StatusBadRequest)
-		return
-	}
+// 	var updated Notebook
+// 	if err := json.NewDecoder(r.Body).Decode(&updated); err != nil {
+// 		http.Error(w, "Erro ao decodificar JSON de entrada", http.StatusBadRequest)
+// 		return
+// 	}
 
-	updated.ID = docID
-	updated.Rev = rev
+// 	updated.ID = docID
+// 	updated.Rev = rev
 
-	newRev, err := h.couchdb.Put(ctx, updated.ID, updated)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Erro ao atualizar documento: %v", err), http.StatusInternalServerError)
-		return
-	}
+// 	newRev, err := h.couchdb.Put(ctx, updated.ID, updated)
+// 	if err != nil {
+// 		http.Error(w, fmt.Sprintf("Erro ao atualizar documento: %v", err), http.StatusInternalServerError)
+// 		return
+// 	}
 
-	updated.Rev = newRev
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(updated)
-}
+// 	updated.Rev = newRev
+// 	w.WriteHeader(http.StatusOK)
+// 	json.NewEncoder(w).Encode(updated)
+// }
 
-// Get
+// // Get
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	ctx := context.TODO()
 
 	vars := mux.Vars(r)
+	id := vars["notebook_id"]
 
-	var nb Notebook
-
-	err := h.couchdb.Get(ctx, vars["notebook_id"]).ScanDoc(&nb)
+	nb, err := h.service.Get(ctx, id)
 	if err != nil {
-		http.Error(w, "falha ao codificar resposta", http.StatusInternalServerError)
+		http.Error(w, "falha ao buscar Notebook", http.StatusInternalServerError)
 		return
 	}
 
@@ -149,22 +151,9 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	docID := vars["notebook_id"]
 
-	var nb Notebook
-	row := h.couchdb.Get(ctx, docID)
-	if err := row.ScanDoc(&nb); err != nil {
-		http.Error(w, fmt.Sprintf("Erro ao buscar documento: %v", err), http.StatusNotFound)
-		return
-	}
-
-	rev := nb.Rev // Aqui pega a revisão do documento
-	if rev == "" {
-		http.Error(w, "Falha ao obter a rev", http.StatusInternalServerError)
-		return
-	}
-
-	_, err := h.couchdb.Delete(ctx, docID, rev)
+	err := h.service.Delete(ctx, docID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Erro ao deletar documento: %v", err), http.StatusInternalServerError)
+		http.Error(w, "falha ao deletar entidade", http.StatusInternalServerError)
 		return
 	}
 
@@ -175,45 +164,45 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// List
-func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	ctx := context.TODO()
+// // List
+// func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
+// 	w.Header().Set("Content-Type", "application/json")
+// 	ctx := context.TODO()
 
-	rows := h.couchdb.AllDocs(ctx, kivik.Params(map[string]interface{}{"include_docs": true}))
+// 	rows := h.couchdb.AllDocs(ctx, kivik.Params(map[string]interface{}{"include_docs": true}))
 
-	if rows != nil {
-		http.Error(w, fmt.Sprintf("Erro ao listar documentos: %v", rows), http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
+// 	if rows != nil {
+// 		http.Error(w, fmt.Sprintf("Erro ao listar documentos: %v", rows), http.StatusInternalServerError)
+// 		return
+// 	}
+// 	defer rows.Close()
 
-	var notebooks []Notebook
+// 	var notebooks []Notebook
 
-	for rows.Next() {
-		var nb Notebook
-		if err := rows.ScanDoc(&nb); err != nil {
-			http.Error(w, fmt.Sprintf("Erro ao ler documento: %v", err), http.StatusInternalServerError)
-			return
-		}
-		id, err := rows.ID()
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Erro ao obter ID do documento: %v", err), http.StatusInternalServerError)
-			return
-		}
-		nb.ID = id
-		fmt.Printf("couch resp: %+v\n", nb)
+// 	for rows.Next() {
+// 		var nb Notebook
+// 		if err := rows.ScanDoc(&nb); err != nil {
+// 			http.Error(w, fmt.Sprintf("Erro ao ler documento: %v", err), http.StatusInternalServerError)
+// 			return
+// 		}
+// 		id, err := rows.ID()
+// 		if err != nil {
+// 			http.Error(w, fmt.Sprintf("Erro ao obter ID do documento: %v", err), http.StatusInternalServerError)
+// 			return
+// 		}
+// 		nb.ID = id
+// 		fmt.Printf("couch resp: %+v\n", nb)
 
-		notebooks = append(notebooks, nb)
-	}
+// 		notebooks = append(notebooks, nb)
+// 	}
 
-	if err := rows.Err(); err != nil {
-		http.Error(w, fmt.Sprintf("Erro durante iteração: %v", err), http.StatusInternalServerError)
-		return
-	}
+// 	if err := rows.Err(); err != nil {
+// 		http.Error(w, fmt.Sprintf("Erro durante iteração: %v", err), http.StatusInternalServerError)
+// 		return
+// 	}
 
-	if err := json.NewEncoder(w).Encode(notebooks); err != nil {
-		http.Error(w, "Erro ao codificar resposta", http.StatusInternalServerError)
-		return
-	}
-}
+// 	if err := json.NewEncoder(w).Encode(notebooks); err != nil {
+// 		http.Error(w, "Erro ao codificar resposta", http.StatusInternalServerError)
+// 		return
+// 	}
+// }
