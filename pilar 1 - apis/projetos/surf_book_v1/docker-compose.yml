@@ -1,0 +1,12 @@
+version: '3.8'
+services:
+   postgres:
+    image: postgres
+    volumes:
+        - dbdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: "pass"
+    ports:
+      - "5432:5432"
+volumes:
+  dbdata:
