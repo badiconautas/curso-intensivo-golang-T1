@@ -5,26 +5,15 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+
+	"github.com/lucasbadico/surfbook-api-v1/service"
 )
 
 type Handler struct {
-	// service *service.Service
+	notebookSrv *service.NotebookService
 }
 
-type HealthResponse struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
-}
-
-func New(
-// srv *service.Service,
-) *Handler {
-	return &Handler{
-		// service: srv,
-	}
-}
-
-func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) health(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
@@ -33,6 +22,22 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type HealthResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
+
+func New(
+	notebookSrv *service.NotebookService,
+) *Handler {
+	return &Handler{
+		notebookSrv: notebookSrv,
+	}
+}
+
 func (h *Handler) MountHandlers(r *mux.Router) {
-	r.HandleFunc("/health", h.Health).Methods("GET")
+	r.HandleFunc("/health", h.health).Methods("GET")
+
+	h.mountNotebookRoutes(r)
+
 }

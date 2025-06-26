@@ -11,7 +11,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
-	"github.com/lucasbadico/intensivo-surfbook-v1/handler"
+	"github.com/lucasbadico/surfbook-api-v1/foundation"
+	"github.com/lucasbadico/surfbook-api-v1/handler"
+	"github.com/lucasbadico/surfbook-api-v1/repository"
+	"github.com/lucasbadico/surfbook-api-v1/service"
 )
 
 type CreateUserDTO struct {
@@ -48,22 +51,24 @@ func getUserByID(db *sql.DB, id uuid.UUID) (*User, error) {
 
 func main() {
 	log.Println("creating a webserver")
-	connStr := "postgres://postgres:pass@localhost:5432/surfbook_dev?sslmode=disable"
+	conn := "postgres://postgres:pass@localhost:5432/surfbook_dev?sslmode=disable"
 
-	db, err := sql.Open("postgres", connStr)
+	db, err := foundation.NewPostgresDB(conn)
 	if err != nil {
-		panic(err)
+		log.Fatalf("Conexão com PostgreSQL não executada!")
 	}
+	fmt.Println("Conexão com PostgreSQL estabelecida com sucesso.")
 
-	err = db.Ping()
-	if err != nil {
-		panic(err)
-	}
+	userRepo := repository.NewUserRepository(db)
+	userSrv := service.NewUserService(userRepo)
+	fmt.Println("User Service criado com sucesso", userSrv)
 
-	fmt.Println("Conexão com PostgreSQL estabelecida com sucesso!")
+	notebookRepo := repository.NewNotebookRepository(db)
+	notebookSrv := service.NewNotebookService(notebookRepo)
+	fmt.Println("Notebook Service criado com sucesso", notebookSrv)
 
 	r := mux.NewRouter()
-	h := handler.New()
+	h := handler.New(notebookSrv)
 
 	h.MountHandlers(r)
 	r.HandleFunc("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
@@ -108,6 +113,7 @@ func main() {
 			http.Error(w, "falha ao codificar resposta", http.StatusInternalServerError)
 		}
 	}).Methods("POST")
+
 	log.Println("Servidor rodando em :8080")
 	http.ListenAndServe(":8080", r)
 }
