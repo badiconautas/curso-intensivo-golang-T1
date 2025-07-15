@@ -32,7 +32,7 @@ type User struct {
 
 func createUser(db *sql.DB, id uuid.UUID, name, email string) error {
 	query := `INSERT INTO users (name, email, created_at) VALUES ($1, $2, $3)`
-	_, err := db.Exec(query, name, email)
+	_, err := db.Exec(query, name, email, "2024-07-02")
 	return err
 }
 
@@ -48,7 +48,7 @@ func getUserByID(db *sql.DB, id uuid.UUID) (*User, error) {
 	}
 	return &user, nil
 }
-
+//conexõ com o banco
 func main() {
 	log.Println("creating a webserver")
 	conn := "postgres://postgres:pass@localhost:5432/surfbook_dev?sslmode=disable"
@@ -67,10 +67,18 @@ func main() {
 	notebookSrv := service.NewNotebookService(notebookRepo)
 	fmt.Println("Notebook Service criado com sucesso", notebookSrv)
 
+	tagRepo := repository.NewUserTagRepository(db)
+	tagSrv := service.NewUserTagService(tagRepo)
+	fmt.Println("Tag Service criado com sucesso", tagSrv)
+
 	r := mux.NewRouter()
-	h := handler.New(notebookSrv)
+	h := handler.New(notebookSrv, tagSrv)
 
 	h.MountHandlers(r)
+	r.HandleFunc("/tags", h.CreateTag).Methods("POST")
+	r.HandleFunc("/tags", h.ListTag).Methods("GET")
+	r.HandleFunc("/tags/{tag_id}", h.DeleteTag).Methods("DELETE")
+	
 	r.HandleFunc("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
